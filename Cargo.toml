@@ -1,0 +1,4 @@
+[package]
+name = "cargo-progress-demo"
+version = "0.1.0"
+authors = ["Adam Solove <asolove@gmail.com>"]
