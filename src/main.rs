@@ -1,3 +1,5 @@
+#![feature(convert)]
+
 use std::fmt;
 use std::io;
 use std::io::Write;
@@ -50,8 +52,15 @@ struct Compilation {
 }
 
 impl Compilation {
-	fn advance(&mut self) {
-		self.check = "/".to_string();
+	fn advance(self) -> Compilation {
+		let check = match self.check.as_str() {
+			"/" => "-",
+			"-" => "\\",
+			"\\" => "|",
+			"|" => "/",
+			_ => "-"
+		}.to_string();
+		Compilation{check: check, .. self}
 	}
 }
 
@@ -62,13 +71,31 @@ impl fmt::Display for Compilation {
 }
 
 fn main() {
-	let mut c = Compilation{file: "stuff.rs".to_string(), status: CompileStatus::NotStarted, time: 0, check: "|".to_string()};
+	let mut compiles = vec![
+		Compilation{file: "stuff.rs".to_string(), status: CompileStatus::NotStarted, time: 0, check: "/".to_string()},
+		Compilation{file: "things.rs".to_string(), status: CompileStatus::NotStarted, time: 0, check: "/".to_string()},
+	];
 
-	print!("{}", c);
-	io::stdout().flush();
-
-	thread::sleep_ms(1000);
-	c.advance();
-	print!("\r{}", c);
-	print!("\n");
+	for i in 0..20 {
+		display(&compiles);
+		thread::sleep_ms(100);
+		compiles = step(compiles);
+	}
 }
+
+fn display(compiles: &Vec<Compilation>) {
+	for c in compiles.iter() {
+		println!("{}", c)
+	}
+	// go back up to where we started?
+}
+
+fn step(compiles: Vec<Compilation>) -> Vec<Compilation> {
+	compiles.iter().map(|c| c.advance()).collect()
+}
+
+
+
+
+
+
