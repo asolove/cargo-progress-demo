@@ -1,5 +1,3 @@
-#![feature(convert)]
-
 use std::fmt;
 use std::io;
 use std::io::Write;
@@ -48,18 +46,14 @@ struct Compilation {
 	file: String,
 	status: CompileStatus,
 	time: u64,
-	check: String,
+	check: &'static str
 }
+
+const SPINNER_STATES: [&'static str; 4] = ["/", "-", "\\", "|"];
 
 impl Compilation {
 	fn advance(self) -> Compilation {
-		let check = match self.check.as_str() {
-			"/" => "-",
-			"-" => "\\",
-			"\\" => "|",
-			"|" => "/",
-			_ => "-"
-		}.to_string();
+        let check = "|";
 		Compilation{check: check, .. self}
 	}
 }
@@ -72,14 +66,14 @@ impl fmt::Display for Compilation {
 
 fn main() {
 	let mut compiles = vec![
-		Compilation{file: "stuff.rs".to_string(), status: CompileStatus::NotStarted, time: 0, check: "/".to_string()},
-		Compilation{file: "things.rs".to_string(), status: CompileStatus::NotStarted, time: 0, check: "/".to_string()},
+		Compilation{file: "stuff.rs".to_string(), status: CompileStatus::NotStarted, time: 0, check: "/"},
+		Compilation{file: "things.rs".to_string(), status: CompileStatus::NotStarted, time: 0, check: "/"},
 	];
 
 	for i in 0..20 {
 		display(&compiles);
 		thread::sleep_ms(100);
-		compiles = step(compiles);
+		compiles = step(&mut compiles);
 	}
 }
 
@@ -90,8 +84,13 @@ fn display(compiles: &Vec<Compilation>) {
 	// go back up to where we started?
 }
 
-fn step(compiles: Vec<Compilation>) -> Vec<Compilation> {
-	compiles.iter().map(|c| c.advance()).collect()
+fn step(compiles: &mut Vec<Compilation>) -> Vec<Compilation> {
+    let mut next = vec![];
+    while let Some(compile) = compiles.pop() {
+        next.push(compile.advance());
+    }
+    next.reverse();
+    next
 }
 
 
