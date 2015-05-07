@@ -1,11 +1,9 @@
 extern crate rand;
+extern crate term;
 
 use std::fmt;
-use std::io;
-use std::io::Write;
+use std::io::prelude::*;
 use std::thread;
-use rand::Rng;
-
 
 static UP_LINE: &'static str = "\x1b[1F";
 static CLEAR_LINE: &'static str = "\x1b[K";
@@ -49,19 +47,18 @@ impl CompileStatus {
 
 impl fmt::Display for CompileStatus {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, "{}", self.name())
+        write!(f, "{}", self.name())
 	}
 }
 
 struct Compilation {
 	file: String,
 	status: CompileStatus,
-	time: u64,
 	check: usize
 }
 
 const SPINNER_STATES: [&'static str; 4] = ["/", "-", "\\", "|"];
-const DONE_STATE: &'static str = "*";
+const DONE_STATE: &'static str = "✓";
 
 impl Compilation {
 	fn advance(self) -> Compilation {
@@ -73,26 +70,26 @@ impl Compilation {
 
 impl fmt::Display for Compilation {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let check = if self.status == CompileStatus::Done {
-            DONE_STATE
-        } else {
-            SPINNER_STATES[self.check]
+        let check = match self.status {
+            CompileStatus::Done => DONE_STATE,
+            CompileStatus::NotStarted => " ",
+            _ => SPINNER_STATES[self.check]
         };
-		write!(f, " [{}] {} {}", check, self.status, self.file)
+		write!(f, " [{}] {}: {}", check, self.file, self.status)
 	}
 }
 
 fn main() {
 	let mut compiles = vec![
-		Compilation{file: "alligators.rs".to_string(), status: CompileStatus::NotStarted, time: 0, check: 0},
-		Compilation{file: "bears.rs".to_string(), status: CompileStatus::NotStarted, time: 0, check: 0},
-		Compilation{file: "cats.rs".to_string(), status: CompileStatus::NotStarted, time: 0, check: 0},
-		Compilation{file: "dogs.rs".to_string(), status: CompileStatus::NotStarted, time: 0, check: 0},
-		Compilation{file: "elephants.rs".to_string(), status: CompileStatus::NotStarted, time: 0, check: 0},
-		Compilation{file: "fauns.rs".to_string(), status: CompileStatus::NotStarted, time: 0, check: 0},
+		Compilation{file: "alligators.rs".to_string(), status: CompileStatus::Parsing, check: 0},
+		Compilation{file: "bears.rs".to_string(), status: CompileStatus::Parsing, check: 0},
+		Compilation{file: "cats.rs".to_string(), status: CompileStatus::NotStarted, check: 0},
+		Compilation{file: "dogs.rs".to_string(), status: CompileStatus::NotStarted, check: 0},
+		Compilation{file: "elephants.rs".to_string(), status: CompileStatus::NotStarted, check: 0},
+		Compilation{file: "fauns.rs".to_string(), status: CompileStatus::NotStarted, check: 0},
 	];
 
-	for i in 0..200 {
+	for _ in 0..200 {
 		display(&compiles);
 		thread::sleep_ms(100);
 		compiles = step(&mut compiles);
@@ -100,12 +97,19 @@ fn main() {
 }
 
 fn display(compiles: &Vec<Compilation>) {
+    let mut t = term::stdout().unwrap();
 	for c in compiles.iter() {
-        print!("{}", CLEAR_LINE);
-		println!("{}", c);
+        write!(t, "{}", CLEAR_LINE).unwrap();
+        let color = if c.status == CompileStatus::Done {
+            term::color::GREEN
+        } else {
+            term::color::YELLOW
+        };
+        t.fg(color).unwrap();
+        write!(t, "{}\n", c).unwrap();
 	}
-	for c in compiles.iter() {
-		print!("{}", UP_LINE);
+	for _ in compiles.iter() {
+        write!(t, "{}", UP_LINE).unwrap()
 	}
 }
 
