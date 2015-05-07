@@ -1,8 +1,16 @@
+extern crate rand;
+
 use std::fmt;
 use std::io;
 use std::io::Write;
 use std::thread;
+use rand::Rng;
 
+
+static UP_LINE: &'static str = "\x1b[1F";
+static CLEAR_LINE: &'static str = "\x1b[K";
+
+#[derive(Clone, Copy, Eq, PartialEq)] 
 enum CompileStatus {
     NotStarted,
     Parsing,
@@ -10,6 +18,7 @@ enum CompileStatus {
     Analyzing,
     Translating,
     Linking,
+    Done
 }
 
 impl CompileStatus {
@@ -20,7 +29,8 @@ impl CompileStatus {
 		  CompileStatus::Configuring => "Configuring and expanding",
 		  CompileStatus::Analyzing => "Analyzing",
 		  CompileStatus::Translating => "Translating to LLVM",
-		  CompileStatus::Linking => "Linking"
+		  CompileStatus::Linking => "Linking",
+          CompileStatus::Done => "Done"
 		}
 	}
 
@@ -31,7 +41,8 @@ impl CompileStatus {
 		  CompileStatus::Configuring => CompileStatus::Analyzing,
 		  CompileStatus::Analyzing => CompileStatus::Translating,
 		  CompileStatus::Translating => CompileStatus::Linking,
-		  CompileStatus::Linking => CompileStatus::Linking
+		  CompileStatus::Linking => CompileStatus::Done,
+          CompileStatus::Done => CompileStatus::Done
 		}
 	}
 }
@@ -46,31 +57,42 @@ struct Compilation {
 	file: String,
 	status: CompileStatus,
 	time: u64,
-	check: &'static str
+	check: usize
 }
 
 const SPINNER_STATES: [&'static str; 4] = ["/", "-", "\\", "|"];
+const DONE_STATE: &'static str = "*";
 
 impl Compilation {
 	fn advance(self) -> Compilation {
-        let check = "|";
-		Compilation{check: check, .. self}
+        let check = (self.check+1) % 4;
+        let status = if rand::random::<f32>() > 0.95 { self.status.next() } else { self.status };
+		Compilation{check: check, status: status, .. self}
 	}
 }
 
 impl fmt::Display for Compilation {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, " [{}] {} {}", self.check, self.status, self.file)
+        let check = if self.status == CompileStatus::Done {
+            DONE_STATE
+        } else {
+            SPINNER_STATES[self.check]
+        };
+		write!(f, " [{}] {} {}", check, self.status, self.file)
 	}
 }
 
 fn main() {
 	let mut compiles = vec![
-		Compilation{file: "stuff.rs".to_string(), status: CompileStatus::NotStarted, time: 0, check: "/"},
-		Compilation{file: "things.rs".to_string(), status: CompileStatus::NotStarted, time: 0, check: "/"},
+		Compilation{file: "alligators.rs".to_string(), status: CompileStatus::NotStarted, time: 0, check: 0},
+		Compilation{file: "bears.rs".to_string(), status: CompileStatus::NotStarted, time: 0, check: 0},
+		Compilation{file: "cats.rs".to_string(), status: CompileStatus::NotStarted, time: 0, check: 0},
+		Compilation{file: "dogs.rs".to_string(), status: CompileStatus::NotStarted, time: 0, check: 0},
+		Compilation{file: "elephants.rs".to_string(), status: CompileStatus::NotStarted, time: 0, check: 0},
+		Compilation{file: "fauns.rs".to_string(), status: CompileStatus::NotStarted, time: 0, check: 0},
 	];
 
-	for i in 0..20 {
+	for i in 0..200 {
 		display(&compiles);
 		thread::sleep_ms(100);
 		compiles = step(&mut compiles);
@@ -79,9 +101,12 @@ fn main() {
 
 fn display(compiles: &Vec<Compilation>) {
 	for c in compiles.iter() {
-		println!("{}", c)
+        print!("{}", CLEAR_LINE);
+		println!("{}", c);
 	}
-	// go back up to where we started?
+	for c in compiles.iter() {
+		print!("{}", UP_LINE);
+	}
 }
 
 fn step(compiles: &mut Vec<Compilation>) -> Vec<Compilation> {
